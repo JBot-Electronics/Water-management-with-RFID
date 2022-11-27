@@ -33,16 +33,16 @@ byte data_read[18], readbackblock1[18];
 int addr = 0;       //Address for eeprom
 
 //KEYPAD
-const byte ROWS = 4; //four rows
-const byte COLS = 4; //four columns
+const byte ROWS = 4;
+const byte COLS = 3;
 char hexaKeys[ROWS][COLS] = {
-  {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+  {'7', '8', '9'},
+  {'*', '0', '#'}
 };
+byte rowPins[ROWS] = {5, 4, 3, 2}, colPins[COLS] = {6, 7, 8};
 
-byte rowPins[ROWS] = {3, 2, 1, 0}, colPins[COLS] = {7, 6, 5, 4};
 int amount;
 float current_volume;
 String tag_cash;
@@ -51,7 +51,7 @@ String tag_cash;
 //Function declaration
 void AdminMenu();
 void CustomerMenu(int);
-void UpdateScreen(int, int, String,bool);
+void UpdateScreen(int, int, String, bool);
 
 //Objects inistances
 LiquidCrystal_I2C Screen(0x27, numCols, numRows);
@@ -63,12 +63,20 @@ MFRC522::MIFARE_Key key;
 
 void setup() {
   // put your setup code here, to run once:
+  Serial.begin(9600);
+  SPI.begin();
+  RFID.PCD_Init();
   Screen.init();
   Screen.backlight();
-  UpdateScreen(0, 0, "Water System",true);
-  UpdateScreen(0, 1, "Scan the Tag",true);
-  delay(100);
-  Screen.clear();
+  for (byte i = 0; i < 6; i++) {
+    key.keyByte[i] = 0xFF;
+  }
+
+    UpdateScreen(0, 0, "Water System",true);
+    delay(1000);
+    UpdateScreen(0, 1, "Scan the Tag",false);
+    delay(100);
+//    Screen.clear();
 
 }
 
@@ -77,7 +85,6 @@ void loop() {
   if ( ! RFID.PICC_IsNewCardPresent()) {
     return;
   }
-
   if ( ! RFID.PICC_ReadCardSerial())
   {
     return;
@@ -87,6 +94,7 @@ void loop() {
   readBlock(selected_block, data_read);
   String UserLevel = String((char*)data_read);
 
+
   if (UserLevel == "Admin") {
     AdminMenu();
   }
@@ -95,6 +103,8 @@ void loop() {
     int credit = String((char*)readbackblock1).toInt();
     CustomerMenu(credit);
   }
+
+
 }
 
 
@@ -146,35 +156,41 @@ int writeBlock(int selected_block, byte arrayAddress[]) {
 
 
 void options() {
-  UpdateScreen(0, 0, "ADMIN",true);
-  UpdateScreen(0, 1, "[1]- Recharge Customer.. [2]-- Set one liter price",true);
-  Screen.noAutoscroll();
+  UpdateScreen(0, 0, "ADMIN", true);
+  Screen.autoscroll();
+//    for (int thisChar = 0; thisChar < 10; thisChar++) {
+//    delay(500);
+//  }
+  UpdateScreen(0, 1, "[1]- Recharge Customer.. [2]-- Set one liter price", true);
+//  Screen.noAutoscroll();
 }
 
 void AdminMenu() {
   options();
-  char* key_pressed = KeyBoard.getKey();
+  char  key_pressed = KeyBoard.getKey();
+  Screen.setCursor(0,0);
+  Screen.print(String(key_pressed));
+  delay(100);
   Screen.clear();
 
-  if (key_pressed == "1") {
-    UpdateScreen(0, 0, (key_pressed),true);
-    UpdateScreen(0, 1, "Enter Amount: ",true);
+  if (key_pressed == "4") {
+//    UpdateScreen(0, 0, String(key_pressed), true);
+    UpdateScreen(0, 1, "Enter Amount: ", false);
 
-    int cursor_position = 0;
     readKeypad();
-    UpdateScreen(0, 1, "Scan Customer Card: ",true);
+    UpdateScreen(0, 1, "Scan Customer Card: ", false);
     readBlock(CustomerBlock[1], readbackblock1);
     int cash = String((char*)readbackblock1).toInt();
     int updated_cash = cash + amount;
 
     // Update card
     writeBlock(CustomerBlock[1], updated_cash);
-    UpdateScreen(0, 1, "Remove the tag",true);
+    UpdateScreen(0, 1, "Remove the tag", true);
 
   }
-  else if (key_pressed == "2") {
+  else if (key_pressed == "5") {
     amount = readKeypad();
-    UpdateScreen(0, 1, String(amount),true);
+    UpdateScreen(0, 1, String(amount), true);
     EEPROM.update(addr, amount);
   }
   else {
@@ -191,11 +207,11 @@ float GetVolume() {
 int readKeypad() {
   int cursor_position = 0;
   while (true) {
-    char* key = KeyBoard.getKey();
-//    Pressing any key other than a number confirms the amount entered
-    if (key != "A" || key != "B" || key != "C" || key != "D" || key != "E" || key != "F") {
-      
-      UpdateScreen(cursor_position, 1,key,false);
+    char key = KeyBoard.getKey();
+    //    Pressing any key other than a number confirms the amount entered
+    if (key != "*" || key != "#") {
+
+      UpdateScreen(cursor_position, 1, String(key), false);
       tag_cash += key;
       //    amount[cursor_position] = key;
       cursor_position += 1;
@@ -210,23 +226,25 @@ int readKeypad() {
 
 
 void CustomerMenu(int cash) {
-  UpdateScreen(0,0,"Enter amount in ltrs",true);
   Screen.autoscroll();
+  UpdateScreen(0, 0, "Enter amount in ltrs", true);
+  
   int ltrs = readKeypad();
+  
   float current_price = EEPROM.read(addr);
 
   if (GetVolume() < ltrs) {
-    UpdateScreen(0,0,"No Enough water",true);
+    UpdateScreen(0, 0, "No Enough water", true);
   } else {
 
     if ((current_price * ltrs) > cash) {
-      UpdateScreen(0,0,"Please Recharge",true);
-      UpdateScreen(0,1,"Cash: ", false);
-      UpdateScreen(8,1,String(cash),false);
+      UpdateScreen(0, 0, "Please Recharge", true);
+      UpdateScreen(0, 1, "Cash: ", false);
+      UpdateScreen(8, 1, String(cash), false);
     }
     else {
       current_volume = GetVolume();
-      UpdateScreen(0,0,"Pumping water",true);
+      UpdateScreen(0, 0, "Pumping water", true);
 
       while ((current_volume - GetVolume()) <= ltrs) {
         //  Turn on the pump relay
@@ -235,8 +253,8 @@ void CustomerMenu(int cash) {
           Relay_state = false;
         }
       }
-      UpdateScreen(0,1,"Scan card again",false);
-      
+      UpdateScreen(0, 1, "Scan card again", false);
+
       int updated_cash = cash - (current_price * ltrs);
       writeBlock(CustomerBlock[1], updated_cash);
       digitalWrite(RELAY_PIN, LOW);
