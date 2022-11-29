@@ -14,8 +14,8 @@
 #define SS_PIN 10
 #define RST_PIN 9
 //Ultrasonic sensor pins
-#define TRIGGER_PIN 6   //trigger pin of ultrasonic sensor
-#define ECHO_PIN 7      //echo pin of ultrasonic sensor
+#define TRIGGER_PIN A2   //trigger pin of ultrasonic sensor
+#define ECHO_PIN A3      //echo pin of ultrasonic sensor
 #define RELAY_PIN 8     // Pin where pump relay is connected
 // all in centimeters
 #define MAX_DISTANCE 95 // this is the max distance, the sensor should detect of which is equivalent to cylinder height
@@ -168,16 +168,12 @@ void options() {
 void AdminMenu() {
   options();
   char  key_pressed = KeyBoard.getKey();
-  Screen.setCursor(0,0);
-  Screen.print(String(key_pressed));
-  delay(100);
-  Screen.clear();
+  UpdateScreen(0,0,String(key_pressed),false);
 
   if (key_pressed == "4") {
-//    UpdateScreen(0, 0, String(key_pressed), true);
     UpdateScreen(0, 1, "Enter Amount: ", false);
 
-    readKeypad();
+    read_keypad();
     UpdateScreen(0, 1, "Scan Customer Card: ", false);
     readBlock(CustomerBlock[1], readbackblock1);
     int cash = String((char*)readbackblock1).toInt();
@@ -189,7 +185,7 @@ void AdminMenu() {
 
   }
   else if (key_pressed == "5") {
-    amount = readKeypad();
+    amount = read_keypad();
     UpdateScreen(0, 1, String(amount), true);
     EEPROM.update(addr, amount);
   }
@@ -204,22 +200,27 @@ float GetVolume() {
   return volume;
 }
 
-int readKeypad() {
+int read_keypad() {
   int cursor_position = 0;
+  String amount;
+  
   while (true) {
     char key = KeyBoard.getKey();
-    //    Pressing any key other than a number confirms the amount entered
-    if (key != "*" || key != "#") {
-
-      UpdateScreen(cursor_position, 1, String(key), false);
-      tag_cash += key;
-      //    amount[cursor_position] = key;
-      cursor_position += 1;
+    
+    if (key == "*") {
+//      delete the preceeding numbers
+      UpdateScreen(cursor_position,1,"",false);
+      cursor_position-=1;
+      
     }
+    else if( key == "#"){
+//      confim
+      return amount.toInt();
+      }
     else {
-      amount = tag_cash.toInt();
-      tag_cash = "";
-      return amount;
+        UpdateScreen(cursor_position, 1, String(key), false);
+          amount[cursor_position] = key;
+      cursor_position += 1;
     }
   }
 }
@@ -229,7 +230,7 @@ void CustomerMenu(int cash) {
   Screen.autoscroll();
   UpdateScreen(0, 0, "Enter amount in ltrs", true);
   
-  int ltrs = readKeypad();
+  int ltrs = read_keypad();
   
   float current_price = EEPROM.read(addr);
 
