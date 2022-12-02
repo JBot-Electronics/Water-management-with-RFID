@@ -25,12 +25,12 @@
 
 /*============================
  ************ Global variables*****************
- * ============================
- */
+   ============================
+*/
 const int numRows = 2, numCols = 16; //LCD variables cols and rowa
 int selected_block = 1, CustomerBlock[2] = {1, 2};
 
-byte AdminBlock[16] = {"Admin"},Customer[2][16] = {{"Customer"}, {"00000"}};
+byte AdminBlock[16] = {"Admin"}, Customer[2][16] = {{"Customer"}, {"00000"}};
 bool Relay_state = true;
 float current_volume;
 
@@ -53,10 +53,10 @@ byte rowPins[ROWS] = {5, 6, 7, 8}, colPins[COLS] = {4, 3, 2};
 
 /*=========================
  ************Function declaration*********
- *=========================
- */
+  =========================
+*/
 int readBlock(int blockNumber, byte arrayAddress[]);
-int writeBlock(int selected_block, byte arrayAddress[]);void options(); 
+int writeBlock(int selected_block, byte arrayAddress[]); void options();
 void AdminMenu();
 void CustomerMenu(int cash);
 void UpdateScreen(int col, int row, String message, bool clear_screen);
@@ -67,8 +67,8 @@ bool Authenticate();
 
 /*========================
  **********Objects inistances************
- *========================
- */
+  ========================
+*/
 LiquidCrystal_I2C Screen(0x27, numCols, numRows);
 NewPing WaterLevel(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
 Keypad KeyBoard = Keypad( makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS);
@@ -88,54 +88,62 @@ void setup() {
   delay(1000);
   UpdateScreen(0, 1, "Scan the Tag", false);
   delay(100);
-  Screen.clear();
+  //  Screen.clear();
+
+  int a=read_keypad(false);
+//  UpdateScreen(0,0,String(a),true);
+
+ 
+
 }
 
 
 void loop() {
-    if ( ! RFID.PICC_IsNewCardPresent()) {
-      return;
-    }
-    if ( ! RFID.PICC_ReadCardSerial())
-    {
-      return;
-    }
-    
-  //  Read the first block to determine user's level
-    readBlock(selected_block, data_read);
-    String UserLevel = String((char*)data_read);
+  //    if ( ! RFID.PICC_IsNewCardPresent()) {
+  //      return;
+  //    }
+  //    if ( ! RFID.PICC_ReadCardSerial())
+  //    {
+  //      return;
+  //    }
+  //
+  //  //  Read the first block to determine user's level
+  //    readBlock(selected_block, data_read);
+  //    String UserLevel = String((char*)data_read);
+  //
+  //    if (UserLevel == "Admin") {
+  //          bool is_authenticated=Authenticate();
+  //          if(is_authenticated){
+  //              AdminMenu();
+  //            }
+  //    }
+  //    else {
+  //      readBlock(CustomerBlock[1], readbackblock1);
+  //      int credit = String((char*)readbackblock1).toInt();
+  //      CustomerMenu(credit);
+  //    }
 
-    if (UserLevel == "Admin") {
-          bool is_authenticated=Authenticate();
-          if(is_authenticated){
-              AdminMenu();
-            }
-    }
-    else {
-      readBlock(CustomerBlock[1], readbackblock1);
-      int credit = String((char*)readbackblock1).toInt();
-      CustomerMenu(credit);
-    }
+
 }
 
 
 /* ========================
  * *********custom function definitions***
- * ========================
- */
+   ========================
+*/
 int readBlock(int blockNumber, byte arrayAddress[])
 {
   int largestModulo4Number = blockNumber / 4 * 4;
-  int trailerBlock = largestModulo4Number + 3; 
+  int trailerBlock = largestModulo4Number + 3;
 
   //authentication of the desired block for access
   byte status = RFID.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(RFID.uid));
 
-//  if (status != MFRC522::STATUS_OK) {
-//    Serial.print("PCD_Authenticate() failed (read): ");
-//    Serial.println(RFID.GetStatusCodeName(status));
-//    return 3;//return "3" as error message
-//  }
+  //  if (status != MFRC522::STATUS_OK) {
+  //    Serial.print("PCD_Authenticate() failed (read): ");
+  //    Serial.println(RFID.GetStatusCodeName(status));
+  //    return 3;//return "3" as error message
+  //  }
 
   byte buffersize = 18;
   status = RFID.MIFARE_Read(blockNumber, arrayAddress, &buffersize);
@@ -153,11 +161,11 @@ int writeBlock(int selected_block, byte arrayAddress[]) {
 
   //authentication of the desired block for access
   byte status = RFID.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(RFID.uid));
-//  if (status != MFRC522::STATUS_OK) {
-//    Serial.print("Authentication failed: ");
-//    Serial.println(RFID.GetStatusCodeName(status));
-//    return 3;
-//  }
+  //  if (status != MFRC522::STATUS_OK) {
+  //    Serial.print("Authentication failed: ");
+  //    Serial.println(RFID.GetStatusCodeName(status));
+  //    return 3;
+  //  }
 
   //writing the block
   status = RFID.MIFARE_Write(selected_block, arrayAddress, 16);
@@ -192,7 +200,7 @@ void AdminMenu() {
   options();
   int amount;
   char  key_pressed = read_keypad(false);
-  
+
   if (key_pressed == "1") {
     UpdateScreen(0, 0, "Enter Amount: ", false);
     amount = read_keypad(false);
@@ -262,77 +270,111 @@ float GetVolume() {
 }
 
 
+
 int read_keypad(bool Is_password = false) {
   int cursor_position = 0;
-  String amount;
+  char amount[10];
   char key;
 
-  //get key presses till # is preassed
-  while (KeyBoard.getKey() != "#") {
-    if (key == "*") {
-      //      delete the preceeding numbers
-      UpdateScreen(cursor_position, 1, "", false);
-      cursor_position -= 1;
+  while (true) {
+    if (KeyBoard.getKeys())
+    {
+      for (int i = 0; i < LIST_MAX; i++) // Scan the whole key list.
+      {
+        if ( KeyBoard.key[i].stateChanged )   // Only find keys that have changed state.
+        {
+          switch (KeyBoard.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
+            case PRESSED:
+              key = KeyBoard.key[i].kchar;
+              break;
+            case RELEASED:
+              key = KeyBoard.key[i].kchar;
+              break;
+          }
+          
+          if(String(key)=="#"){  
+            return int(amount);
+            }
+            UpdateScreen(cursor_position,1,String(key),false);
+            amount[cursor_position]=key;
+//            UpdateScreen(cursor_position,0,String(amount[cursor_position]),false);
+            
+            cursor_position+=1;
+          }
+
+        }
+      } 
     }
-    else {
-      if (Is_password) {
-        UpdateScreen(cursor_position, 1, String(key), false);
-        delay(10);
-        UpdateScreen(cursor_position, 1, "*", false);
-      } else {
-        UpdateScreen(cursor_position, 1, String(key), false);
-        amount[cursor_position] = key;
-      }
-      cursor_position += 1;
-    }
+//return amount.toInt();
+
+    //get key presses till # is preassed
+    //  while (key != "#" && key != "255") {
+    //    if (key == "*") {
+    //      //      delete the preceeding numbers
+    //      UpdateScreen(cursor_position, 1, "", false);
+    //      cursor_position -= 1;
+    //    }
+    //    else {
+    //      if (Is_password) {
+    //        UpdateScreen(cursor_position, 1, String(key), false);
+    //        delay(1000);
+    //        UpdateScreen(cursor_position, 1, "*", false);
+    //      } else {
+    //        UpdateScreen(cursor_position, 1, String(key), false);
+    //        amount[cursor_position] = key;
+    //      }
+    //      cursor_position += 1;
+    //    }
+    //    key=KeyBoard.getKey();
+    //  }
+    //  return amount.toInt();
   }
-  return amount.toInt();
-}
 
 
 
-void UpdateScreen(int col, int row, String message, bool clear_screen = true) {
-  if (clear_screen) {
-    Screen.clear();
-    Screen.setCursor(col, row);
-    Screen.print(message);
-  } else {
-    Screen.setCursor(col, row);
-    Screen.print(message);
+  void UpdateScreen(int col, int row, String message, bool clear_screen = true) {
+    if (clear_screen) {
+      Screen.clear();
+      Screen.setCursor(col, row);
+      Screen.print(message);
+    } else {
+      Screen.setCursor(col, row);
+      Screen.print(message);
+    }
   }
-}
 
-bool Authenticate() {
-  UpdateScreen(0, 0, "Enter Password: ", false);
-  int pass = read_keypad(true), stored_pass = EEPROM.read(pass_address);
-  int trials = 3;
-  if (stored_pass) {
-    while (trials > 0) {
-      if (stored_pass == pass) {
-        return true;
-      } else {
-        UpdateScreen(0, 0, "Enter Password: ", false);
-        UpdateScreen(0, 1, char(trials-1)+"Remaining", false);
-        pass = read_keypad(true);
-      }
-      trials -= 1;
-    }
-    return false;
+  bool Authenticate() {
+    UpdateScreen(0, 0, "Enter Password: ", false);
+    int pass = read_keypad(true), stored_pass = EEPROM.read(pass_address);
+    int trials = 3;
+    Screen.print(stored_pass);
+    //  if (stored_pass) {
+    //    while (trials > 0) {
+    //      if (stored_pass == pass) {
+    //        return true;
+    //      } else {
+    //        UpdateScreen(0, 0, "Enter Password: ", false);
+    //        UpdateScreen(0, 1, char(trials-1)+"Remaining", false);
+    //        pass = read_keypad(true);
+    //      }
+    //      trials -= 1;
+    //    }
+    //    return false;
+    //  }
+    //  else {
+    //    UpdateScreen(0, 0, "Set Password: ", false);
+    //    int new_pass = read_keypad(true);
+    //    UpdateScreen(0, 0, "Enter Password again: ", false);
+    //    int new_pass_1 = read_keypad(true);
+    //    if(new_pass==new_pass_1){
+    //      EEPROM.update(pass_address,new_pass);
+    //      return true;
+    //    }else{
+    //    UpdateScreen(0, 0, "Wrong password:", false);
+    //    UpdateScreen(0, 1, "Password is set to: ", false);
+    //    UpdateScreen(0, 0, String(1234), false);
+    //    EEPROM.update(pass_address,1234);
+    //    return true;
+    //    }
+    //  }
   }
-  else {
-    UpdateScreen(0, 0, "Set Password: ", false);
-    int new_pass = read_keypad(true);
-    UpdateScreen(0, 0, "Enter Password again: ", false);
-    int new_pass_1 = read_keypad(true);
-    if(new_pass==new_pass_1){
-      EEPROM.update(pass_address,new_pass);
-      return true;
-    }else{
-    UpdateScreen(0, 0, "Wrong password:", false);
-    UpdateScreen(0, 1, "Password is set to: ", false);
-    UpdateScreen(0, 0, String(1234), false);
-    EEPROM.update(pass_address,1234);
-    return true;
-    }
-  }
-}
