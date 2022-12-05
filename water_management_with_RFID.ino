@@ -35,9 +35,9 @@ bool Relay_state = true;
 float current_volume;
 
 //This array is used for reading out a block.
-byte data_read[18], readbackblock1[18];
+byte data_read[18],data_read_1[18], readbackblock1[18];
 
-int price_address = 0, pass_address = 1;    //Address for eeprom
+int price_address = 0, pass_address = 1,typed;    //Address for eeprom
 
 //KEYPAD
 const byte ROWS = 4;
@@ -61,7 +61,7 @@ void AdminMenu();
 void CustomerMenu(int cash);
 void UpdateScreen(int col, int row, String message, bool clear_screen);
 float GetVolume();
-int read_keypad(bool Is_password);
+String read_keypad(bool Is_password);
 bool Authenticate();
 
 
@@ -84,44 +84,49 @@ void setup() {
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
-  UpdateScreen(0, 0, "Water System", true);
-  delay(1000);
-  UpdateScreen(0, 1, "Scan the Tag", false);
-  delay(100);
-  //  Screen.clear();
-
-  int a=read_keypad(false);
-//  UpdateScreen(0,0,String(a),true);
-
- 
-
+  
 }
 
 
 void loop() {
-  //    if ( ! RFID.PICC_IsNewCardPresent()) {
-  //      return;
-  //    }
-  //    if ( ! RFID.PICC_ReadCardSerial())
-  //    {
-  //      return;
-  //    }
-  //
-  //  //  Read the first block to determine user's level
-  //    readBlock(selected_block, data_read);
-  //    String UserLevel = String((char*)data_read);
-  //
-  //    if (UserLevel == "Admin") {
-  //          bool is_authenticated=Authenticate();
-  //          if(is_authenticated){
-  //              AdminMenu();
-  //            }
-  //    }
-  //    else {
-  //      readBlock(CustomerBlock[1], readbackblock1);
-  //      int credit = String((char*)readbackblock1).toInt();
-  //      CustomerMenu(credit);
-  //    }
+  UpdateScreen(2, 0, "Water System", false);
+//  UpdateScreen(0, 1, "Scan the Tag", false);
+      
+      if ( ! RFID.PICC_IsNewCardPresent()) {
+        return;
+      }
+      if ( ! RFID.PICC_ReadCardSerial())
+      {
+        return;
+      }
+      
+    //  Read the first block to determine user's level
+      readBlock(selected_block, data_read);
+//      String UserLevel = String((char*)data_read);
+      Screen.clear();
+      UpdateScreen(0,1,"UserLevel",false);
+      delay(1000);
+      Screen.clear();
+//  
+//      if (UserLevel == "Admin") {
+//            bool is_authenticated=Authenticate();
+//            if(is_authenticated){
+//                AdminMenu();
+//              }
+//      }
+//      else {
+//        readBlock(CustomerBlock[1], readbackblock1);
+//        int credit = String((char*)readbackblock1).toInt();
+//        CustomerMenu(credit);
+//        delay(1000);
+//        Screen.clear();
+//      }
+////       UpdateScreen(0, 0, "Water System", false);
+////  UpdateScreen(0, 1, "Scan the Tag", false);
+  for(int i=0;i<18;i++){
+  data_read[i]=0;  
+  }
+  
 
 
 }
@@ -139,17 +144,17 @@ int readBlock(int blockNumber, byte arrayAddress[])
   //authentication of the desired block for access
   byte status = RFID.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(RFID.uid));
 
-  //  if (status != MFRC522::STATUS_OK) {
-  //    Serial.print("PCD_Authenticate() failed (read): ");
-  //    Serial.println(RFID.GetStatusCodeName(status));
-  //    return 3;//return "3" as error message
-  //  }
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print("PCD_Authenticate() failed (read): ");
+      Serial.println(RFID.GetStatusCodeName(status));
+      return 3;//return "3" as error message
+    }
 
   byte buffersize = 18;
   status = RFID.MIFARE_Read(blockNumber, arrayAddress, &buffersize);
   if (status != MFRC522::STATUS_OK) {
-    Serial.print("MIFARE_read() failed: ");
-    Serial.println(RFID.GetStatusCodeName(status));
+//    Serial.print("MIFARE_read() failed: ");
+//    Serial.println(RFID.GetStatusCodeName(status));
     return 4;//return "4" as error message
   }
 }
@@ -178,18 +183,19 @@ int writeBlock(int selected_block, byte arrayAddress[]) {
 
 
 void options() {
+  Screen.clear();
   Screen.setCursor(0, 0);
   Screen.print("ADMIN");
-  String options[3] = {"[1]- Recharge Customer.. ", "[2]-- Set one liter price", " [3]-- Change Password"};
+  String options[3] = {"[1]:Recharge Customer.. ", "[2]:Set one liter price", " [3]:Change Password"};
 
   for (int j = 0; j < 3; j++) {
     Screen.setCursor(0, 1);
     Screen.print(options[j]);
-    delay(1000);
+    delay(500);
     for (int PositionCount = 0; PositionCount < 20; PositionCount++)
     {
       Screen.scrollDisplayLeft();
-      delay(300);
+      delay(400);
     }
     Screen.clear();
   }
@@ -199,26 +205,39 @@ void options() {
 void AdminMenu() {
   options();
   int amount;
-  char  key_pressed = read_keypad(false);
+  String  key_pressed = read_keypad(false);
 
   if (key_pressed == "1") {
     UpdateScreen(0, 0, "Enter Amount: ", false);
-    amount = read_keypad(false);
+    amount = (read_keypad(false)).toInt();
     delay(100);
     Screen.clear();
     UpdateScreen(0, 0, "Place Customer Card: ", false);
+    delay(1000);
+
+       readBlock(selected_block, data_read_1);
+      String User = String((char*)data_read_1);
+
+        if(User=="Customer"){
     readBlock(CustomerBlock[1], readbackblock1);
     int cash = String((char*)readbackblock1).toInt();
     int updated_cash = cash + amount;
 
     // Update card
-    writeBlock(CustomerBlock[1], updated_cash);
-    UpdateScreen(0, 1, "Remove the tag", true);
+//    writeBlock(CustomerBlock[1], updated_cash);
+    UpdateScreen(0, 1, "Remove the tag", false);  
+      UpdateScreen(0,1,User,false);
+        }
+     UpdateScreen(0, 1, "Remove the tag", false);
+
   }
   else if (key_pressed == "2") {
-    amount = read_keypad(false);
-    UpdateScreen(0, 1, String(amount), true);
-    EEPROM.update(price_address, amount);
+    Screen.clear();
+      UpdateScreen(0, 0, "Enter Price: ", false);
+    amount = (read_keypad(false)).toInt();
+    Screen.clear();
+    UpdateScreen(0, 1, String(amount), false);
+//    EEPROM.update(price_address, amount);
   }
   else {
     options();
@@ -227,9 +246,10 @@ void AdminMenu() {
 
 
 void CustomerMenu(int cash) {
+  Screen.clear();
   UpdateScreen(0, 0, "Enter amount in ltrs:", false);
 
-  int ltrs = read_keypad(false);
+  int ltrs = (read_keypad(false)).toInt();
 
   float current_price = EEPROM.read(price_address);
 
@@ -271,11 +291,10 @@ float GetVolume() {
 
 
 
-int read_keypad(bool Is_password = false) {
+String read_keypad(bool Is_password = false) {
   int cursor_position = 0;
   char amount[10];
   char key;
-
   while (true) {
     if (KeyBoard.getKeys())
     {
@@ -283,98 +302,102 @@ int read_keypad(bool Is_password = false) {
       {
         if ( KeyBoard.key[i].stateChanged )   // Only find keys that have changed state.
         {
-          switch (KeyBoard.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
-            case PRESSED:
-              key = KeyBoard.key[i].kchar;
-              break;
-            case RELEASED:
-              key = KeyBoard.key[i].kchar;
-              break;
-          }
-          
-          if(String(key)=="#"){  
-            return int(amount);
+          if (KeyBoard.key[i].kstate == PRESSED) {
+            key = KeyBoard.key[i].kchar;
+
+            if (String(key) == "#") {
+              // print all pressed keys
+              if(Is_password){
+                for(int i=0;i<cursor_position;i++){
+                amount[i]=amount[i];
             }
-            UpdateScreen(cursor_position,1,String(key),false);
-            amount[cursor_position]=key;
-//            UpdateScreen(cursor_position,0,String(amount[cursor_position]),false);
-            
-            cursor_position+=1;
-          }
-
+              return (amount);  
+                }else{
+              for(int i=0;i<cursor_position;i++){
+                amount[i]=amount[i];
+               UpdateScreen(i, 1, String(amount[i]), false);
+            }
+              return (amount);
+            }
+            }
+            else if (String(key) == "*") {
+              cursor_position -= 1;
+              UpdateScreen(cursor_position, 1, " ", false);
+            }
+            else {
+              if(Is_password){
+                UpdateScreen(cursor_position, 1, "*", false);
+              }else{
+              UpdateScreen(cursor_position, 1, String(key), false);  
+              }
+              
+              amount[cursor_position] = key;
+               cursor_position += 1;
+               cursor_position=0?cursor_position<0:cursor_position;
+            }
+         }
         }
-      } 
+      }
     }
-//return amount.toInt();
-
-    //get key presses till # is preassed
-    //  while (key != "#" && key != "255") {
-    //    if (key == "*") {
-    //      //      delete the preceeding numbers
-    //      UpdateScreen(cursor_position, 1, "", false);
-    //      cursor_position -= 1;
-    //    }
-    //    else {
-    //      if (Is_password) {
-    //        UpdateScreen(cursor_position, 1, String(key), false);
-    //        delay(1000);
-    //        UpdateScreen(cursor_position, 1, "*", false);
-    //      } else {
-    //        UpdateScreen(cursor_position, 1, String(key), false);
-    //        amount[cursor_position] = key;
-    //      }
-    //      cursor_position += 1;
-    //    }
-    //    key=KeyBoard.getKey();
-    //  }
-    //  return amount.toInt();
   }
+  
+}
 
 
 
-  void UpdateScreen(int col, int row, String message, bool clear_screen = true) {
-    if (clear_screen) {
+void UpdateScreen(int col, int row, String message, bool clear_screen = true) {
+  if (clear_screen) {
+    Screen.clear();
+    Screen.setCursor(col, row);
+    Screen.print(message);
+  } else {
+    Screen.setCursor(col, row);
+    Screen.print(message);
+  }
+}
+
+bool Authenticate() {
+  Screen.clear();
+  UpdateScreen(0, 0, "Enter Password: ", false);
+  int pass = read_keypad(true).toInt(), stored_pass = EEPROM.read(pass_address);
+  int trials = 3;
+//  UpdateScreen(0,1,String(pass),false);
+//  Screen.print(stored_pass);
+    if (stored_pass!=255) {
+//      while (trials > 0) {
+//        if (stored_pass == pass) {
+//          return true;
+//        } else {
+//          UpdateScreen(0, 0, "Enter Password: ", false);
+//          UpdateScreen(0, 1, char(trials-1)+"Remaining", false);
+//          pass = read_keypad(true);
+//        }
+//        trials -= 1;
+//      }
+//      return false;
+  Screen.print(stored_pass);
+
+    }
+    else {
+  Screen.clear();
+
+      
+      UpdateScreen(0, 0, "Set Password: ", false);
+      int new_pass = read_keypad(true).toInt();
       Screen.clear();
-      Screen.setCursor(col, row);
-      Screen.print(message);
-    } else {
-      Screen.setCursor(col, row);
-      Screen.print(message);
-    }
-  }
+      UpdateScreen(0, 0, "Enter Password again: ", false);
 
-  bool Authenticate() {
-    UpdateScreen(0, 0, "Enter Password: ", false);
-    int pass = read_keypad(true), stored_pass = EEPROM.read(pass_address);
-    int trials = 3;
-    Screen.print(stored_pass);
-    //  if (stored_pass) {
-    //    while (trials > 0) {
-    //      if (stored_pass == pass) {
-    //        return true;
-    //      } else {
-    //        UpdateScreen(0, 0, "Enter Password: ", false);
-    //        UpdateScreen(0, 1, char(trials-1)+"Remaining", false);
-    //        pass = read_keypad(true);
-    //      }
-    //      trials -= 1;
-    //    }
-    //    return false;
-    //  }
-    //  else {
-    //    UpdateScreen(0, 0, "Set Password: ", false);
-    //    int new_pass = read_keypad(true);
-    //    UpdateScreen(0, 0, "Enter Password again: ", false);
-    //    int new_pass_1 = read_keypad(true);
-    //    if(new_pass==new_pass_1){
-    //      EEPROM.update(pass_address,new_pass);
-    //      return true;
-    //    }else{
-    //    UpdateScreen(0, 0, "Wrong password:", false);
-    //    UpdateScreen(0, 1, "Password is set to: ", false);
-    //    UpdateScreen(0, 0, String(1234), false);
-    //    EEPROM.update(pass_address,1234);
-    //    return true;
-    //    }
-    //  }
-  }
+      int new_pass_1 = read_keypad(true).toInt();
+            Screen.clear();
+      if(new_pass==new_pass_1){
+//        EEPROM.update(pass_address,new_pass);
+        return true;
+      }else{
+      UpdateScreen(0, 0, "Wrong password:", false);
+      UpdateScreen(0, 1, "Password is set to: ", false);
+      UpdateScreen(0, 0, String(1234), false);
+//      EEPROM.update(pass_address,1234);
+      return true;
+      }
+    }
+}
