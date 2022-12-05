@@ -15,3 +15,7 @@ This project is to monitor water usage to houses that uses shared water tank. Th
  **ILLUSTRATION DIAGRAM**
  
 ![illustration daigram](img/water_rfid.drawio.png)
+
+**FRITZING DIAGRAM**
+
+![fritzing diagram](img/fritzing_diagram.png)
